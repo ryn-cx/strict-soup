@@ -17,8 +17,8 @@ class StrictSelectError(Exception):
 class StrictMixin(Tag):
     """Mixin for adding extra functions to BeautifulSoup objects."""
 
-    # This is technically a type error because ResultSet[StrctTag] is not a subclass of ResultSet[Tag], but it
-    # shouldn't cause any errors the way it's used.
+    # This is technically a type error because ResultSet[StrctTag] is not a subclass of ResultSet[Tag], there isn't ab
+    # obvious fix to this, but this shouldn't cause any problems in practice.
     def select(
         self,
         selector: str,
@@ -26,18 +26,15 @@ class StrictMixin(Tag):
         limit: int | None = None,
         **kwargs: Any,  # noqa: ANN401 - This type is copied directly from the parent class
     ) -> ResultSet[StrictTag]:
-        """.select_one that returns a StrctTag object or None if no match is found.
+        """.select wrapper that returns a ResultSet[StrictTag].
 
         Args:
         ----
-            selector: The string used to select elements from the source.
-            namespaces: The namespaces to use when selecting elements.
-            limit: The maximum number of elements to return. If None, all matching elements are returned.
-            **kwargs: Additional arguments to pass to the parent class's select method.
-
-        Returns:
-        -------
-            A ResultSet containing the selected elements, each wrapped in a StrictTag object.
+            selector: A string containing a CSS selector.
+            namespaces: A dictionary mapping namespace prefixes used in the CSS selector to namespace URIs. By default,
+            Beautiful Soup will use the prefixes it encountered while parsing the document.
+            limit: After finding this number of results, stop looking.
+            kwargs: Keyword arguments to be passed into SoupSieve's soupsieve.select() method.
         """
         output = super().select(selector, namespaces, limit, **kwargs)
         return ResultSet[StrictTag](output.source, [StrictTag(item) for item in output])
@@ -52,13 +49,10 @@ class StrictMixin(Tag):
 
         Args:
         ----
-            selector: The string used to select elements from the source.
-            namespaces: The namespaces to use when selecting elements.
-            **kwargs: Additional arguments to pass to the parent class's select method.
-
-        Returns:
-        -------
-            A StrictTag object containing the selected element or None if no match is found.
+            selector: A string containing a CSS selector.
+            namespaces: A dictionary mapping namespace prefixes used in the CSS selector to namespace URIs. By default,
+            Beautiful Soup will use the prefixes it encountered while parsing the document.
+            kwargs: Keyword arguments to be passed into SoupSieve's soupsieve.select() method.
         """
         output = super().select_one(selector, namespaces, **kwargs)
         if output is not None:
@@ -66,36 +60,56 @@ class StrictMixin(Tag):
 
         return output
 
-    def strict_select(self, selector: str) -> ResultSet[StrictTag]:
+    def strict_select(
+        self,
+        selector: str,
+        namespaces: Any | None = None,  # noqa: ANN401 - This type is copied directly from the parent class
+        limit: int | None = None,
+        **kwargs: Any,  # noqa: ANN401 - This type is copied directly from the parent class
+    ) -> ResultSet[StrictTag]:
         """.select with simplified parameters that will raise an exception if no matches are found.
 
         Args:
         ----
-            selector: The string used to select elements from the source.
+            selector: A string containing a CSS selector.
+            namespaces: A dictionary mapping namespace prefixes used in the CSS selector to namespace URIs. By default,
+            Beautiful Soup will use the prefixes it encountered while parsing the document.
+            limit: After finding this number of results, stop looking.
+            kwargs: Keyword arguments to be passed into SoupSieve's soupsieve.select() method.
 
-        Returns:
-        -------
-            A ResultSet containing the selected elements, each wrapped in a StrictTag object.
+        Raises:
+        ------
+            StrictSelectError: When no matches are found.
         """
-        output = self.select(selector)
+        output = self.select(selector, namespaces, limit, **kwargs)
         if len(output) == 0:
             msg = f"No matches found for strict_select({selector})"
             raise StrictSelectError(msg)
 
         return output
 
-    def strict_select_one(self, selector: str) -> StrictTag:
+    def strict_select_one(
+        self,
+        selector: str,
+        namespaces: Any | None = None,  # noqa: ANN401 - This type is copied directly from the parent class
+        limit: int | None = None,
+        **kwargs: Any,  # noqa: ANN401 - This type is copied directly from the parent class
+    ) -> StrictTag:
         """.select_one with simplified parameters that will raise an exception if no matches are found.
 
         Args:
         ----
-            selector: The string used to select elements from the source.
+            selector: A string containing a CSS selector.
+            namespaces: A dictionary mapping namespace prefixes used in the CSS selector to namespace URIs. By default,
+            Beautiful Soup will use the prefixes it encountered while parsing the document.
+            limit: After finding this number of results, stop looking.
+            kwargs: Keyword arguments to be passed into SoupSieve's soupsieve.select() method.
 
-        Returns:
-        -------
-            A StrictTag object containing the selected element.
+        Raises:
+        ------
+            StrictSelectError: When there is not exactly one match.
         """
-        output = self.strict_select(selector)
+        output = self.strict_select(selector, namespaces, limit, **kwargs)
         if len(output) != 1:
             msg = f"Found {len(output)} matches for strict_select_one({selector})"
             raise StrictSelectError(msg)
@@ -109,9 +123,9 @@ class StrictMixin(Tag):
         ----
             key: The string used to select attributes from the element.
 
-        Returns:
-        -------
-            A string object containing the selected attribute.
+        Raises:
+        ------
+            StrictSelectError: When no matches are found.
         """
         output = self.get(key)
         if not isinstance(output, str):
@@ -122,7 +136,12 @@ class StrictMixin(Tag):
 
 
 class StrictTag(StrictMixin):
-    """Tag object that has been extended with extra functions."""
+    """Tag with extra functions.
+
+    Represents an HTML or XML tag that is part of a parse tree, along with its attributes and contents.
+
+    When Beautiful Soup parses the markup <b>penguin</b>, it will create a Tag object representing the <b> tag.
+    """
 
     def __init__(self, tag: Tag | None) -> None:
         """Initialize the StrctTag object.
@@ -140,4 +159,34 @@ class StrictTag(StrictMixin):
 class StrictSoup(BeautifulSoup, StrictMixin):  # type: ignore - This error is present in the original beautifulsoup
     # class because beautifulsoup is a subclass of Tag and beautifulsoup has a reportIncompatibleMethodOverride error in
     # the original code.
-    """BeautifulSoup object that has been extended with extra functions."""
+    """BeautifulSoup with extra functions.
+
+    A data structure representing a parsed HTML or XML document.
+
+    Most of the methods you'll call on a BeautifulSoup object are inherited from
+    PageElement or Tag.
+
+    Internally, this class defines the basic interface called by the
+    tree builders when converting an HTML/XML document into a data
+    structure. The interface abstracts away the differences between
+    parsers. To write a new tree builder, you'll need to understand
+    these methods as a whole.
+
+    These methods will be called by the BeautifulSoup constructor:
+      * reset()
+      * feed(markup)
+
+    The tree builder may call these methods from its feed() implementation:
+      * handle_starttag(name, attrs) # See note about return value
+      * handle_endtag(name)
+      * handle_data(data) # Appends to the current data node
+      * endData(containerClass) # Ends the current data node
+
+    No matter how complicated the underlying parser is, you should be
+    able to build a tree using 'start tag' events, 'end tag' events,
+    'data' events, and "done with data" events.
+
+    If you encounter an empty-element tag (aka a self-closing tag,
+    like HTML's <br> tag), call handle_starttag and then
+    handle_endtag.
+    """
