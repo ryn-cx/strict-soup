@@ -151,9 +151,7 @@ class StrictTag(StrictMixin):
             tag: The Tag object to wrap.
         """
         # Dynamically copy all attributes from the parent class to the child class
-        parent_attributes = vars(tag)
-        for attr_name, attr_value in parent_attributes.items():
-            setattr(self, attr_name, attr_value)
+        self.__dict__.update(vars(tag))
 
 
 class StrictSoup(BeautifulSoup, StrictMixin):  # type: ignore - This error is present in the original beautifulsoup
