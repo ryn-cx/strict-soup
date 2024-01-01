@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from typing import Any
 from bs4 import BeautifulSoup
 from bs4.element import ResultSet, Tag
+from typing_extensions import override
 
 
 class StrictSelectError(Exception):
@@ -19,12 +20,13 @@ class StrictMixin(Tag):
 
     # This is technically a type error because ResultSet[StrctTag] is not a subclass of ResultSet[Tag], there isn't ab
     # obvious fix to this, but this shouldn't cause any problems in practice.
+    @override
     def select(
         self,
         selector: str,
-        namespaces: Any | None = None,  # noqa: ANN401 - This type is copied directly from the parent class
+        namespaces: Any | None = None,
         limit: int | None = None,
-        **kwargs: Any,  # noqa: ANN401 - This type is copied directly from the parent class
+        **kwargs: Any,
     ) -> ResultSet[StrictTag]:
         """.select wrapper that returns a ResultSet[StrictTag].
 
@@ -39,13 +41,14 @@ class StrictMixin(Tag):
         output = super().select(selector, namespaces, limit, **kwargs)
         return ResultSet[StrictTag](output.source, [StrictTag(item) for item in output])
 
+    @override
     def select_one(
         self,
         selector: str,
-        namespaces: Any | None = None,  # noqa: ANN401 - These types are copied directly from the parent class
-        **kwargs: Any,  # noqa: ANN401 - These types are copied directly from the parent class
+        namespaces: Any | None = None,
+        **kwargs: Any,
     ) -> StrictTag | None:
-        """.select_one wrapper that returns a StrctTag object or None.
+        """.select_one wrapper that returns a StrctTag or None.
 
         Args:
         ----
